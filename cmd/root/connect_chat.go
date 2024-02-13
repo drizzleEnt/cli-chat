@@ -12,10 +12,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func ConnectChat(ctx context.Context, client desc.ChatV1Client, chatId string, username string) error {
+func ConnectChat(ctx context.Context, client desc.ChatV1Client, chatId string) error {
 	stream, err := client.ConnectChat(ctx, &desc.ConnectChatRequest{
 		ChatId:   chatId,
-		Username: username,
+		Username: "username",
 	})
 
 	if err != nil {
@@ -33,9 +33,9 @@ func ConnectChat(ctx context.Context, client desc.ChatV1Client, chatId string, u
 				log.Printf("failed to receive message from stream: %v", errRecv)
 				return
 			}
-			if message.GetFrom() == username {
-				continue
-			}
+			// if message.GetFrom() == username {
+			// 	continue
+			// }
 
 			log.Printf("[%v]-[from %s]: %s", message.GetCreatedAt().AsTime().Format(time.RFC3339), message.GetFrom(), message.GetText())
 		}
@@ -52,7 +52,7 @@ func ConnectChat(ctx context.Context, client desc.ChatV1Client, chatId string, u
 		_, err = client.SendMessage(ctx, &desc.SendMessageRequest{
 			ChatId: chatId,
 			Message: &desc.Message{
-				From:      username,
+				From:      "username",
 				Text:      msg,
 				CreatedAt: timestamppb.Now(),
 			},
