@@ -11,10 +11,8 @@ import (
 	login "github.com/drizzleent/cli-chat/pkg/login_v1"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
-
-var refreshToken string
-var accessToken string
 
 var rootCmd = &cobra.Command{
 	Use:   "chat",
@@ -45,7 +43,7 @@ var connectChatCmd = &cobra.Command{
 			log.Fatalf("failed to get chat id: %v", err)
 		}
 
-		token, err := token.ReadRefresh()
+		token, err := token.ReadAccess()
 		if err != nil {
 			log.Fatalf("failed to get token")
 		}
@@ -53,9 +51,13 @@ var connectChatCmd = &cobra.Command{
 		defer conn.Close()
 		client := chat.NewChatV1Client(conn)
 		ctx := context.Background()
-		md := metadata.New(map[string]string{"Authrization": "Bearer " + token})
+		md := metadata.New(map[string]string{"authorization": "Bearer " + token})
 		ctx = metadata.NewOutgoingContext(ctx, md)
-		err = ConnectChat(ctx, client, chatId)
+		res, err := client.GetName(ctx, &emptypb.Empty{})
+		if err != nil {
+			log.Fatalf("failed to get username: %v", err)
+		}
+		err = ConnectChat(ctx, client, chatId, res.GetName())
 		if err != nil {
 			log.Fatalf("failed to connect chat: %v", err)
 		}
@@ -63,7 +65,7 @@ var connectChatCmd = &cobra.Command{
 	},
 }
 
-var connectExistUserCmd = &cobra.Command{
+var loginUserCmd = &cobra.Command{
 	Use:   "user",
 	Short: "getting refresh token with username",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -82,7 +84,7 @@ var connectExistUserCmd = &cobra.Command{
 
 		ctx := context.Background()
 		client := login.NewLoginV1Client(conn)
-		resp, err := client.Login(ctx, &login.LoginRequest{
+		loginResp, err := client.Login(ctx, &login.LoginRequest{
 			Info: &login.Login{
 				Username: logStr,
 				Password: passwrdStr,
@@ -91,17 +93,23 @@ var connectExistUserCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to login: %v", err)
 		}
-		refreshToken = resp.GetRefreshToken()
-		file, err := os.Create("bin/token.txt")
+		refreshToken := loginResp.GetRefreshToken()
+		err = token.CreateRefresh(refreshToken)
 		if err != nil {
-			log.Fatalf("failed to create or open file: %v", err)
+			log.Fatalf("failed to create refreshtoken file: %v", err)
 		}
-		defer file.Close()
-		_, err = file.Write([]byte(refreshToken))
+		accsesResp, err := client.GetAccesToken(ctx, &login.GetAccessTokenRequest{
+			RefreshToken: refreshToken,
+		})
 		if err != nil {
-			log.Fatalf("failed to write in file: %v", err)
+			log.Fatalf("failed to get access token: %v", err)
 		}
-		log.Printf("your refresh token is %s\n", refreshToken)
+
+		accessToken := accsesResp.GetAccessToken()
+		err = token.CreateAccess(accessToken)
+		if err != nil {
+			log.Fatalf("failed to create acceasstoken file: %v", err)
+		}
 	},
 }
 
@@ -139,11 +147,18 @@ var createChatCmd = &cobra.Command{
 	Use:   "chat",
 	Short: "creating new chat",
 	Run: func(cmd *cobra.Command, args []string) {
+		accessToken, err := token.ReadAccess()
+		if err != nil {
+			log.Fatalf("failed to read token file: %v", err)
+		}
+
 		conn := ConnectChatServer()
 		defer conn.Close()
 
 		client := chat.NewChatV1Client(conn)
 		ctx := context.Background()
+		md := metadata.New(map[string]string{"authorization": "Bearer " + accessToken})
+		ctx = metadata.NewOutgoingContext(ctx, md)
 		chatId, err := createChat(ctx, client)
 
 		if err != nil {
@@ -179,7 +194,7 @@ func init() {
 	rootCmd.AddCommand(connectCmd)
 
 	connectCmd.AddCommand(connectChatCmd)
-	connectCmd.AddCommand(connectExistUserCmd)
+	connectCmd.AddCommand(loginUserCmd)
 
 	createCmd.AddCommand(createUserCmd)
 	createCmd.AddCommand(createChatCmd)
@@ -192,7 +207,7 @@ func init() {
 		log.Fatalf("failed to mark chatId flag as required %v", err.Error())
 	}
 
-	initcmd.ConnectUserExistFlags(connectExistUserCmd)
+	initcmd.ConnectUserExistFlags(loginUserCmd)
 
 	initcmd.CreateUserFlags(createUserCmd)
 

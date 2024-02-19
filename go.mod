@@ -3,6 +3,7 @@ module github.com/drizzleent/cli-chat
 go 1.21.1
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/golang/protobuf v1.5.3
 	github.com/spf13/cobra v1.8.0
 	google.golang.org/grpc v1.61.0

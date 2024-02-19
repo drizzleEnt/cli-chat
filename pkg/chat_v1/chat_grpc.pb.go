@@ -26,6 +26,7 @@ type ChatV1Client interface {
 	CreateChat(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CreateChatResponse, error)
 	ConnectChat(ctx context.Context, in *ConnectChatRequest, opts ...grpc.CallOption) (ChatV1_ConnectChatClient, error)
 	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	GetName(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetNameResponse, error)
 	Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error)
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 }
@@ -88,6 +89,15 @@ func (c *chatV1Client) SendMessage(ctx context.Context, in *SendMessageRequest, 
 	return out, nil
 }
 
+func (c *chatV1Client) GetName(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetNameResponse, error) {
+	out := new(GetNameResponse)
+	err := c.cc.Invoke(ctx, "/chat_v1.Chat_v1/GetName", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *chatV1Client) Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error) {
 	out := new(CreateResponse)
 	err := c.cc.Invoke(ctx, "/chat_v1.Chat_v1/Create", in, out, opts...)
@@ -113,6 +123,7 @@ type ChatV1Server interface {
 	CreateChat(context.Context, *empty.Empty) (*CreateChatResponse, error)
 	ConnectChat(*ConnectChatRequest, ChatV1_ConnectChatServer) error
 	SendMessage(context.Context, *SendMessageRequest) (*empty.Empty, error)
+	GetName(context.Context, *empty.Empty) (*GetNameResponse, error)
 	Create(context.Context, *CreateRequest) (*CreateResponse, error)
 	Delete(context.Context, *DeleteRequest) (*empty.Empty, error)
 	mustEmbedUnimplementedChatV1Server()
@@ -130,6 +141,9 @@ func (UnimplementedChatV1Server) ConnectChat(*ConnectChatRequest, ChatV1_Connect
 }
 func (UnimplementedChatV1Server) SendMessage(context.Context, *SendMessageRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
+}
+func (UnimplementedChatV1Server) GetName(context.Context, *empty.Empty) (*GetNameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetName not implemented")
 }
 func (UnimplementedChatV1Server) Create(context.Context, *CreateRequest) (*CreateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
@@ -207,6 +221,24 @@ func _ChatV1_SendMessage_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ChatV1_GetName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatV1Server).GetName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/chat_v1.Chat_v1/GetName",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatV1Server).GetName(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ChatV1_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateRequest)
 	if err := dec(in); err != nil {
@@ -257,6 +289,10 @@ var ChatV1_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendMessage",
 			Handler:    _ChatV1_SendMessage_Handler,
+		},
+		{
+			MethodName: "GetName",
+			Handler:    _ChatV1_GetName_Handler,
 		},
 		{
 			MethodName: "Create",

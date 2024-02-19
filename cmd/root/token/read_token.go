@@ -8,7 +8,15 @@ import (
 )
 
 func ReadRefresh() (string, error) {
-	file, err := os.Open("bin/token.txt")
+	return readFile("bin/refreshtoken.txt")
+}
+
+func ReadAccess() (string, error) {
+	return readFile("bin/accesstoken.txt")
+}
+
+func readFile(fileName string) (string, error) {
+	file, err := os.Open(fileName)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %v", err)
 	}
@@ -20,5 +28,9 @@ func ReadRefresh() (string, error) {
 		return "", fmt.Errorf("failed to read from file: %v", err)
 	}
 
+	// line, err = strconv.Unquote(line)
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to unquote file string: %v", err)
+	// }
 	return line, nil
 }
