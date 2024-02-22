@@ -22,6 +22,20 @@ func ConnectChat(ctx context.Context, client desc.ChatV1Client, chatId string, u
 		return err
 	}
 
+	_, err = client.SendMessage(ctx, &desc.SendMessageRequest{
+		ChatId: chatId,
+		Message: &desc.Message{
+			From:      "system",
+			Text:      "user connected " + username,
+			CreatedAt: &timestamppb.Timestamp{},
+		},
+	})
+
+	if err != nil {
+		log.Println("failed to send message: ", err)
+		return err
+	}
+
 	go func() {
 		for {
 			message, errRecv := stream.Recv()

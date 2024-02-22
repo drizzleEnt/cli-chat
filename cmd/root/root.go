@@ -6,11 +6,11 @@ import (
 	"os"
 
 	"github.com/drizzleent/cli-chat/cmd/root/initcmd"
+	"github.com/drizzleent/cli-chat/cmd/root/md"
 	"github.com/drizzleent/cli-chat/cmd/root/token"
 	chat "github.com/drizzleent/cli-chat/pkg/chat_v1"
 	login "github.com/drizzleent/cli-chat/pkg/login_v1"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -43,25 +43,24 @@ var connectChatCmd = &cobra.Command{
 			log.Fatalf("failed to get chat id: %v", err)
 		}
 
-		token, err := token.ReadAccess()
+		accessToken, err := token.ReadAccess()
 		if err != nil {
-			log.Fatalf("failed to get token")
+			log.Fatalf("failed to get access token")
 		}
+
 		conn := ConnectChatServer()
 		defer conn.Close()
+
 		client := chat.NewChatV1Client(conn)
-		ctx := context.Background()
-		md := metadata.New(map[string]string{"authorization": "Bearer " + token})
-		ctx = metadata.NewOutgoingContext(ctx, md)
+		ctx := md.CreateNewAuthMd(accessToken)
 		res, err := client.GetName(ctx, &emptypb.Empty{})
 		if err != nil {
-			log.Fatalf("failed to get username: %v", err)
+			log.Fatalf("failed to get username: %v \n", err)
 		}
 		err = ConnectChat(ctx, client, chatId, res.GetName())
 		if err != nil {
-			log.Fatalf("failed to connect chat: %v", err)
+			log.Fatalf("failed to connect chat: %v \n", err)
 		}
-		log.Printf("user connected to chat %s", chatId)
 	},
 }
 
@@ -93,6 +92,7 @@ var loginUserCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to login: %v", err)
 		}
+
 		refreshToken := loginResp.GetRefreshToken()
 		err = token.CreateRefresh(refreshToken)
 		if err != nil {
@@ -156,9 +156,7 @@ var createChatCmd = &cobra.Command{
 		defer conn.Close()
 
 		client := chat.NewChatV1Client(conn)
-		ctx := context.Background()
-		md := metadata.New(map[string]string{"authorization": "Bearer " + accessToken})
-		ctx = metadata.NewOutgoingContext(ctx, md)
+		ctx := md.CreateNewAuthMd(accessToken)
 		chatId, err := createChat(ctx, client)
 
 		if err != nil {
