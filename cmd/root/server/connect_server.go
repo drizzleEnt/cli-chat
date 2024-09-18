@@ -1,4 +1,4 @@
-package root
+package server
 
 import (
 	"log"
@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func ConnectChatServer() *grpc.ClientConn {
+func ConnectChat() *grpc.ClientConn {
 	conn, err := grpc.Dial("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {
@@ -16,7 +16,7 @@ func ConnectChatServer() *grpc.ClientConn {
 	return conn
 }
 
-func ConnectLoginServer() *grpc.ClientConn {
+func ConnectLogin() *grpc.ClientConn {
 	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {

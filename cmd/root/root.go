@@ -7,9 +7,10 @@ import (
 
 	"github.com/drizzleent/cli-chat/cmd/root/initcmd"
 	"github.com/drizzleent/cli-chat/cmd/root/md"
+	"github.com/drizzleent/cli-chat/cmd/root/server"
 	"github.com/drizzleent/cli-chat/cmd/root/token"
 	chat "github.com/drizzleent/cli-chat/pkg/chat_v1"
-	login "github.com/drizzleent/cli-chat/pkg/login_v1"
+	auth "github.com/drizzleent/cli-chat/pkg/user_v2"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -30,7 +31,7 @@ var deleteCmd = &cobra.Command{
 }
 
 var connectCmd = &cobra.Command{
-	Use:   "connect",
+	Use:   "conn",
 	Short: "connecting",
 }
 
@@ -48,7 +49,7 @@ var connectChatCmd = &cobra.Command{
 			log.Fatalf("failed to get access token")
 		}
 
-		conn := ConnectChatServer()
+		conn := server.ConnectChat()
 		defer conn.Close()
 
 		client := chat.NewChatV1Client(conn)
@@ -77,38 +78,9 @@ var loginUserCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to get password: %v", err)
 		}
-
-		conn := ConnectLoginServer()
-		defer conn.Close()
-
-		ctx := context.Background()
-		client := login.NewLoginV1Client(conn)
-		loginResp, err := client.Login(ctx, &login.LoginRequest{
-			Info: &login.Login{
-				Username: logStr,
-				Password: passwrdStr,
-			},
-		})
+		err = token.ReciveTokens(logStr, passwrdStr)
 		if err != nil {
-			log.Fatalf("failed to login: %v", err)
-		}
-
-		refreshToken := loginResp.GetRefreshToken()
-		err = token.CreateRefresh(refreshToken)
-		if err != nil {
-			log.Fatalf("failed to create refreshtoken file: %v", err)
-		}
-		accsesResp, err := client.GetAccesToken(ctx, &login.GetAccessTokenRequest{
-			RefreshToken: refreshToken,
-		})
-		if err != nil {
-			log.Fatalf("failed to get access token: %v", err)
-		}
-
-		accessToken := accsesResp.GetAccessToken()
-		err = token.CreateAccess(accessToken)
-		if err != nil {
-			log.Fatalf("failed to create acceasstoken file: %v", err)
+			log.Fatalf("failed to get tokens user %v", err)
 		}
 	},
 }
@@ -117,9 +89,9 @@ var createUserCmd = &cobra.Command{
 	Use:   "user",
 	Short: "creating new user",
 	Run: func(cmd *cobra.Command, args []string) {
-		conn := ConnectChatServer()
+		conn := server.ConnectLogin()
 		defer conn.Close()
-		client := chat.NewChatV1Client(conn)
+		client := auth.NewUserV1Client(conn)
 		ctx := context.Background()
 
 		usernameStr, err := cmd.Flags().GetString("username")
@@ -131,12 +103,22 @@ var createUserCmd = &cobra.Command{
 			log.Fatalf("failed to get password %v", err.Error())
 		}
 
-		resp, err := client.Create(ctx, &chat.CreateRequest{
-			Username: usernameStr,
-			Password: passwordStr,
+		resp, err := client.Create(ctx, &auth.CreateRequest{
+			Info: &auth.UserCreate{
+				UserUpdate: &auth.UserUpdate{
+					Name:  usernameStr,
+					Email: "",
+					Role:  0,
+				},
+				Password: passwordStr,
+			},
 		})
 		if err != nil {
 			log.Fatalf("failed to create user %v", err.Error())
+		}
+		err = token.ReciveTokens(usernameStr, passwordStr)
+		if err != nil {
+			log.Fatalf("failed to get tokens user %v", err)
 		}
 
 		log.Printf("user %s created with id:%v", usernameStr, resp.GetId())
@@ -152,7 +134,7 @@ var createChatCmd = &cobra.Command{
 			log.Fatalf("failed to read token file: %v", err)
 		}
 
-		conn := ConnectChatServer()
+		conn := server.ConnectChat()
 		defer conn.Close()
 
 		client := chat.NewChatV1Client(conn)
